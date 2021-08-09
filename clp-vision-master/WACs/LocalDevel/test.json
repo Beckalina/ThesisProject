@@ -1,0 +1,1 @@
+[{"rcorp": "referit", "cnn": "rsn50-max", "rel": "excl", "wrdl": "min", "wprm": 40, "clsf": "logreg-l1", "params": {"penalty": "l2", "warm_start": true, "solver": "lbfgs", "max_iter": 500}, "scaled": true, "nneg": "balanced", "nsrc": "randmax", "notes": ""}, [["at", 1282, 21282], ["very", 1012, 21012], ["top", 5798, 25798], ["guy", 2033, 22033], ["in", 7223, 27223]]]

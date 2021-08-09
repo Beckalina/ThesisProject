@@ -1,0 +1,9 @@
+*.aux
+*.bbl
+*.blg
+*.log
+*.rel
+*synctex.gz
+*.pyc
+*ipynb_checkpoints*
+*__pycache__*

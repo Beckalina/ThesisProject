@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="PYTHON_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/image_wac-master/ApplyModels/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/refer-master/data/refcoco" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/refer-master/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/sempix-master/01_SemPics/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/sempix-master/02_ImageCorpora/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/sempix-master/03_Tasks/DialogueTasks/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/sempix-master/03_Tasks/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference/sempix-master/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/ForReference" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
