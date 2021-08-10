@@ -7,5 +7,8 @@
 *.pyc
 *ipynb_checkpoints*
 *__pycache__*
+*.DS_Store
 ForReference*
 clp-vision-master/Data/*
+clp-vision-master/Preproc/PreprocOut/*
+clp-vision-master/ExtractFeats/ExtractOut/*
