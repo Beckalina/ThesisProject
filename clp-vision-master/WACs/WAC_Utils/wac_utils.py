@@ -1,8 +1,8 @@
 # coding: utf-8
-'''
+"""
 Some utility functions for training models. Actual training is triggered
 by the scripts that define the models.
-'''
+"""
 
 from __future__ import division
 import sys
@@ -13,6 +13,8 @@ from sklearn.utils import shuffle
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from itertools import permutations
+import re
+
 
 # The first features in the image feature Xs encode the region ID
 ID_FEATS = 3
@@ -46,28 +48,34 @@ def filter_refdf_by_filelist(refdf, filelist):
     return pd.merge(refdf, pd.DataFrame(filelist, columns=['image_id']))
 
 
-def is_relational(expr):
-    for rel in RELWORDS:
-        if rel in expr:
+def is_relational(expr, relwords):
+    for rel in relwords:
+        #if rel in expr:
+        try:
+            if re.search(rel, expr):
+                #print('Removed refexp - match:', rel, '\trefexpr:', expr)
+                return True
+        except TypeError:
+            print("\nTypeError with expr:", expr)
             return True
     return False
 
 
-def filter_relational_expr(refdf):
-    '''Filter out refexps with relational expressions.'''
-    return refdf[~(refdf['refexp'].apply(is_relational))]
+def filter_relational_expr(refdf, lang='EN'):
+    """Filter out refexps with relational expressions."""
+    relwords = '../WAC_Utils/relwords_' + lang + '.txt'
+    with open(relwords, 'r') as f:
+        rw = f.read().split('\n')
+    return refdf[~(refdf['refexp'].apply(is_relational, args=(rw,)))]
 
 
 def create_word2den(refdf, refcol='refexp', regcol='region_id'):
-    '''Given refdf, returns dict words to occurrences (id triples).
+    """Given refdf, returns dict words to occurrences (id triples).
 
-    Arguments:
-    refdf -- the DF with the expressions
-
-    Keyword Arguments:
-    refcol    -- the column of the expressions
-    region_id -- the third ID column (not always called "region_id"
-    '''
+    Arguments:      refdf     -- the DF with the expressions
+    Keyword Args:   refcol    -- the column of the expressions
+                    region_id -- the third ID column (not always called "region_id"
+    """
     word2den = defaultdict(list)
     for _, row in refdf.iterrows():
         exprlist = row[refcol].split()
@@ -81,14 +89,11 @@ def create_word2den(refdf, refcol='refexp', regcol='region_id'):
 
 
 def make_X_id_index(X, id_feats=ID_FEATS, cast_to_int=True):
-    '''Map ID_FEATS from matrix to index into matrix, for faster access'''
+    """Map ID_FEATS from matrix to index into matrix, for faster access"""
 
-    # 2019-08-07: pretty inelegant, but an np.array can only have
-    # one type, and for corpora where there are subregions,
-    # we need to have the region id as float...
-    # I don't want to test which is the case here, and I also didn't want
-    # to change this completely, as this may have negative consequences
-    # for old code which may rely on the keys being integers...
+    # 2019-08-07: pretty inelegant, but an np.array can only have one type,
+    # and for corpora where there are subregions, we need to have the region id as float...
+    # Did it this way to avoid having to check which is the case, or potentially breaking old code
     if cast_to_int:
         if type(X) == np.ndarray:
             return dict(zip([tuple(e) for e in X[:, :id_feats].astype(int).tolist()], range(len(X))))
@@ -102,18 +107,14 @@ def make_X_id_index(X, id_feats=ID_FEATS, cast_to_int=True):
 
 
 def make_mask_matrix(X, X_idx, word2den, wordlist):
-    '''Create for each word a mask vector into X, to get occurrences.
+    """Create for each word a mask vector into X, to get occurrences.
+    The mask vector can be used to index X, to get all images that are in denotation of the word.
 
-    The mask vector can be used to index X, to get all images
-    that are in denotation of the word.
-
-    Arguments:
-    X      -- the feature matrix (images x features)
-    X_idx  -- the output of make_X_id_index()
-    word2den - dict linking words to occurrences
-    wordlist - list of words for which to create masks
-    '''
-
+    Arguments:  X        -- the feature matrix (images x features)
+                X_idx    -- the output of make_X_id_index()
+                word2den -- dict linking words to occurrences
+                wordlist -- list of words for which to create masks
+    """
     mask_matrix = []
     for this_word in wordlist:
         this_word_vec = np.zeros(len(X), dtype=np.bool)
@@ -125,12 +126,10 @@ def make_mask_matrix(X, X_idx, word2den, wordlist):
 
 
 def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
-    """
-    Get subset of X from denotation of word (or from complement, for negative examples).
+    """Get subset of X from denotation of word (or from complement, for negative examples).
 
-    Keyword Arguments:
-    - neg_max  -- if 0, no negative instances. If 'balanced', as many as positive. If positive n, capped at that number.
-    If None, no limit.
+    Keyword Arguments:  neg_max --  if 0, no negative instances. If 'balanced', as many as positive.
+                                    If positive n, capped at that number. If None, no limit.
     """
     dask_flag = 0 if type(X) == np.ndarray else 1
 
@@ -163,16 +162,12 @@ def get_X_for_word(X, word2den, mask_matrix, word, neg_max=20000):
 
 def train_this_word(X, word2den, mask_matrix, neg_max,
                     classifier, classf_params, this_word):
-    X_this_w, y_this_w = get_X_for_word(X, word2den,
-                                        mask_matrix, this_word,
-                                        neg_max=neg_max)
-    # print this_word, X_this_w.shape[0]
+    X_this_w, y_this_w = get_X_for_word(X, word2den, mask_matrix,
+                                        this_word, neg_max=neg_max)
     print('.', end='')
     sys.stdout.flush()
     #classifier = classifier(**classf_params)
     #this_wac = classifier.fit(X_this_w, y_this_w)
-    #this_wac = make_pipeline(StandardScaler(),
-    #                        classifier(**classf_params))
     this_wac = Pipeline([('scaler', StandardScaler()),
                          ('clf', classifier(**classf_params))])
     this_wac.fit(X_this_w, y_this_w)
@@ -181,10 +176,9 @@ def train_this_word(X, word2den, mask_matrix, neg_max,
 
 
 def make_X_img_index(X, image_id_idx=1):
-    '''Gets position in X for each image ID / map from imageID to list of indices.
-
+    """Gets position in X for each image ID / map from imageID to list of indices.
     Goes through X and adds current row to list for current image.
-    '''
+    """
     X_image_index = defaultdict(list)
     for image_id, index in zip(X[:, image_id_idx], np.arange(len(X))):
         X_image_index[int(image_id)].append(index)
@@ -192,7 +186,7 @@ def make_X_img_index(X, image_id_idx=1):
 
 
 def make_Xneg_pairs(X_img_idx):
-    '''Gets all pairs of index positions, for objects from the same image.'''
+    """Gets all pairs of index positions, for objects from the same image."""
     Xneg_pairs = []
     for _image_id, object_ids in list(X_img_idx.items()):
         Xneg_pairs.extend(permutations(object_ids, 2))
@@ -297,14 +291,12 @@ def train_this_relation(X, X_idx, Xnegpairs, r2d,
                                  neg_min, neg_factor, ffunc=ffunc)
     if not len(thisX):
         print('can not train this word, no training data', this_rel)
-        return (None, None, None, None)
+        return None, None, None, None
 
     this_wac = classifier(**classf_params)
     this_wac.fit(thisX, thisY)
-
     # print(this_rel, this_wac.score(thisX, thisY))
-
-    return (this_rel, thisY.sum(), len(thisX), this_wac)
+    return this_rel, thisY.sum(), len(thisX), this_wac
 
 
 def ffunc_ext(vector):

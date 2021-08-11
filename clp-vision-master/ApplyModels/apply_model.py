@@ -88,9 +88,7 @@ def p(X, w):
 def apply_words(X_tst, wac, refexp_toks_wac, conf_threshold=None):
     response_vectors = []
     for word in refexp_toks_wac:
-        #print(wac[word]['clsf'])
         response_vector = np.array(wac[word]['clsf'].predict_proba(X=X_tst)[:,1])
-        #print(response_vector)
         if 'conf' in wac[word]:  # classifier confidences scores - if there, use them
             # conf score thrown in logistic function:
             # response_vector *= expit(wac[word]['conf'])

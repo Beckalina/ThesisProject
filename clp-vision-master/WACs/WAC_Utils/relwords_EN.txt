@@ -1,0 +1,15 @@
+below
+above
+between
+behind
+under
+underneath
+front of
+right of
+left of
+ontop of
+next to
+middle of
+not
+except
+other than

@@ -45,6 +45,7 @@ def main(config):
 
     dsgv_home = config.get('DSGV-PATHS', 'dsgv_home')
     preproc_path = dsgv_home + '/Preproc/PreprocOut/'
+    translate_path = dsgv_home + '/Preproc/Translate/'
     feats_path = dsgv_home + '/ExtractFeats/ExtractOut/'
 
     # Define classifier
@@ -80,21 +81,31 @@ def main(config):
     # Image features
     with h5.File(feats_path + 'saiapr_bbdf_rsn50-max.hdf5') as f:
         X = np.array(f["img_feats"])
-    X_t = filter_X_by_filelist(X, s_splits['train'])
+    X_tr = filter_X_by_filelist(X, s_splits['train'])
 
-    # Referring expressions
+    # Referring expressions data
     saiapr_refdf = pd.read_json(preproc_path + 'saiapr_refdf.json.gz',
                                 typ='frame', orient='split', compression='gzip')
+    # Training set
     saiapr_train = filter_refdf_by_filelist(saiapr_refdf, s_splits['train'])
+    saiapr_train = filter_relational_expr(saiapr_train).drop(columns='tagged')
+    print('Saiapr_train shape:', saiapr_train.shape)
 
-    saiapr_train = filter_relational_expr(saiapr_train)
+    # Translated expressions
+    fr_refexp = pd.read_csv(translate_path + 'FR_trainset.csv', sep=',', index_col=0, header=0)
+    print('Translated refexp shape:', fr_refexp.shape)
+
+    refdf_tr = saiapr_train.merge(fr_refexp, how='left', left_index=True, right_index=True, suffixes=('_EN', None))
+    print('Merged refdf_tr:\n', refdf_tr.tail())
+
+    refdf_tr = filter_relational_expr(refdf_tr, lang='FR')
 
     # ======================= Intermediate ==============================
     print_timestamped_message('creating intermediate data structures',
                               indent=4)
-    word2den = create_word2den(saiapr_train)
-    X_idx = make_X_id_index(X_t)
-    mask_matrix = make_mask_matrix(X_t, X_idx, word2den, word2den.keys())
+    word2den = create_word2den(refdf_tr)
+    X_idx = make_X_id_index(X_tr)
+    mask_matrix = make_mask_matrix(X_tr, X_idx, word2den, word2den.keys())
 
     # ======================= Wordlist ==============================
     print_timestamped_message('selecting words to train models for',
@@ -108,7 +119,7 @@ def main(config):
                               indent=4)
 
     wacs = Parallel(n_jobs=N_JOBS, require='sharedmem', prefer='threads')\
-                   (delayed(train_this_word)(X_t, word2den, mask_matrix,
+                   (delayed(train_this_word)(X_tr, word2den, mask_matrix,
                                              model['nneg'],
                                              classifier, classf_params,
                                              this_word)
@@ -123,19 +134,10 @@ def main(config):
     for wd, npos, n, wac in wacs:
         clsf[wd] = {'npos': npos,
                     'n': n,
-                    'clsf': wac,}
+                    'clsf': wac}
 
     with gzip.open(outfile_base + '.pklz', 'w') as f:
         pickle.dump(clsf, f)
-
-
-    """weight_matrix = np.stack([np.append(this_wac.named_steps['clf'].coef_,
-                                        this_wac.named_steps['clf'].intercept_)
-                              for this_wac in [w[3] for w in wacs]])
-    wordinfo = [e[:-1] for e in wacs]
-    with open(outfile_base + '.json', 'w') as f:
-        json.dump((model, wordinfo), f)
-    np.savez_compressed(outfile_base + '.npz', weight_matrix)"""
 
     print_timestamped_message('DONE!')
 
