@@ -1,4 +1,3 @@
-# import requests
 import configparser
 import sys
 import json

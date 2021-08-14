@@ -24,12 +24,32 @@ from utils import print_timestamped_message
 from data_utils import load_dfs
 from apply_utils import apply_wac_set_matrix, logreg
 sys.path.append('../WACs/WAC_Utils')
-from wac_utils import filter_refdf_by_filelist, is_relational, create_word2den
+from wac_utils import filter_refdf_by_filelist, is_relational, create_word2den, filter_relational_expr
 #from augment_model import compute_confidences
 
 
-def main(config, model):
-    outfilename = config.get('runtime', 'out_dir') + '/' + model + '_results'
+def get_en_refexp(path):
+    with open(path + 'saiapr_90-10_splits.json', 'r') as f:
+        ssplit90 = json.load(f)
+
+    srefdf = pd.read_json(path + 'saiapr_refdf.json.gz',
+                          typ='frame', orient='split', compression='gzip')
+    split_df = filter_refdf_by_filelist(srefdf, ssplit90['test'])
+    split_df = filter_relational_expr(split_df, lang)
+    return split_df
+
+
+def get_fr_refexp(path, split='val'):
+    with open(path + 'fr_splits.json', 'r') as f:
+        splits = json.load(f)
+
+    refdf = pd.read_pickle(path + 'FR_small_dataset.pkl')
+    split_df = filter_refdf_by_filelist(refdf, splits[split])
+    return split_df
+
+
+def main(config, model, lang, description, split=None):
+    outfilename = './EvalOut/' + model + '_results'
     if os.path.isfile(outfilename + '.pklz'):
         print('Outfile (%s) exists. Better check before I overwrite anything!' % (outfilename + '.pklz'))
         exit()
@@ -39,10 +59,17 @@ def main(config, model):
     preproc_path = dsgv_home + '/Preproc/PreprocOut/'
     feats_path = dsgv_home + '/ExtractFeats/ExtractOut/'
 
-    results = []
-
     # ------ DATA ------
-    print_timestamped_message('Loading up data. This may take some time.')
+    print_timestamped_message('Loading up data.')
+
+    if lang == 'EN':
+        evaldf = get_en_refexp(preproc_path)
+    elif lang == 'FR':
+        evaldf = get_fr_refexp(preproc_path, split)
+    else:
+        print('Sorry, language {} is not yet supported.'.format(lang))
+        exit()
+    print('Evaluation dataset:\n', evaldf)
 
     # Image features
     with h5.File(feats_path + 'saiapr_bbdf_rsn50-max.hdf5') as rf:
@@ -54,40 +81,11 @@ def main(config, model):
                           typ='frame', orient='split', compression='gzip')
     print('First bounding box s_bbdf[0]:\n', s_bbdf.loc[0])
 
-    # Ref Exp test split
-    with open(preproc_path + 'saiapr_90-10_splits.json', 'r') as rf:
-        ssplit90 = json.load(rf)
-
-    srefdf = pd.read_json(preproc_path + 'saiapr_refdf.json.gz',
-                          typ='frame', orient='split', compression='gzip')
-    testdf = filter_refdf_by_filelist(srefdf, ssplit90['test'])
-    print('Test set length: ', len(testdf))
-    print('First test entry testdf[0]:\n', testdf.loc[0])
-
     # ------ MODEL ------
     print_timestamped_message('Loading model ' + model)
 
     with gzip.open(model_path + model + '.pklz', 'r') as rf:
         wacs = pickle.load(rf)
-
-    """wac_weights = np.load(model_path + model + '.npz')['arr_0']
-    print('WAC weights matrix shape:', wac_weights.shape)
-
-    wac_clsfs = []
-    for ws in wac_weights:
-        classifier = linear_model.LogisticRegression
-        classifier.coef_ = ws[:-1]
-        classifier.intercept_ = ws[-1]
-        wac_clsfs.append(classifier)
-
-    with open(model_path + model + '.json', 'r') as f:
-        wac_words = json.load(f)[1]
-    #wac_words = pd.DataFrame(wac_words, columns=['word', 'npos', 'n'])
-
-    wacs = {}
-    for w, clsf in zip(wac_words, wac_clsfs):  # wac_weights):
-        wacs[w[0]] = {'npos': w[1], 'n': w[2], 'clsf': clsf}
-    print('WAC info & weights for word \'hat\':', wacs['hat'])"""
 
     # ------ EVALUATION ------
     """
@@ -95,18 +93,23 @@ def main(config, model):
     expression e, predict which of these regions contains the referent of the expression.
     """
     print_timestamped_message('Evaluating...')
-    results = eval_testdf(testdf, wacs, X)
+    results = eval_testdf(evaldf, wacs, X)
     print('Results:\n', results)
 
     summary = summarise_eval(results)
     print('Summary:\n', summary)
 
     # Save
-    with gzip.open(outfilename + '.pklz', 'w') as rf:
-        pickle.dump(results, rf)
+    if split == 'val':
+        with open('val_summaries.txt', 'a') as sf:
+            sf.write('\n[{}] {} - {}\n{}\n'.format(datetime.now(), model, description, summary))
 
-    with open('results_summaries.txt', 'a') as sf:
-        sf.write('[{}]\n{}\n'.format(datetime.now(), summary))
+    else:
+        with gzip.open(outfilename + '.pklz', 'w') as rf:
+            pickle.dump(results, rf)
+
+        with open('results_summaries.txt', 'a') as sf:
+            sf.write('\n[{}] {} - {}\n{}\n'.format(datetime.now(), model, description, summary))
 
     print_timestamped_message('Done!')
 
@@ -118,40 +121,38 @@ def main(config, model):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Test WAC model(s)')
-    parser.add_argument('-c', '--config_file',
-                        help='''
-                        path to config file specifying data paths.
-                        default: '../Config/default.cfg' ''',
-                        default='../Config/default.cfg')
     parser.add_argument('-m', '--model',
-                        help='model to evaluate.')
-    parser.add_argument('-n', '--name',
-                        help='''
-                        name to give results file.
-                        default: <model name> + '_results' ''')
-    parser.add_argument('-o', '--out_dir',
-                        help='''
-                        where to put the resulting files.
-                        default: './EvalOut' ''',
-                        default='./EvalOut')
+                        help='Model to evaluate.')
+    parser.add_argument('-l', '--lang',
+                        help='Language. Languages currently supported: EN, FR',
+                        choices=['EN', 'FR'])
+    parser.add_argument('-s', '--split',
+                        help='FR dataset split to test on: val or test',
+                        choices=['val', 'test', None])
     args = parser.parse_args()
 
-    config = configparser.ConfigParser()
-
-    try:
-        with open(args.config_file, 'r', encoding='utf-8') as f:
-            config.read_file(f)
-    except IOError:
-        print('no config file found at %s' % (args.config_file))
-        sys.exit(1)
-
     if not args.model:
-        print('please specify a model to evaluate, e.g. python run_evals.py -m my_model')
-        sys.exit(1)
+        model = input('specify model:')
     else:
         model = args.model
 
-    config.add_section('runtime')
-    config.set('runtime', 'out_dir', args.out_dir)
+    if not args.lang:
+        lang = input('specify language:')
+    else:
+        lang = args.lang
 
-    main(config, model)
+    if lang == 'FR':
+        if not args.split:
+            split = 'val'
+        else:
+            split = args.lang
+    else:
+        split = None
+
+    description = input('enter description for summary log:')
+
+    config = configparser.ConfigParser()
+    with open('../Config/default.cfg', 'r', encoding='utf-8') as f:
+        config.read_file(f)
+
+    main(config, model, lang, description, split)

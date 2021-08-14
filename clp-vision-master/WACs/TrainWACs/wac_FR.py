@@ -12,9 +12,9 @@ import json
 import h5py as h5
 import pickle
 import gzip
-import os
 from os.path import isfile
 from joblib import Parallel, delayed
+from datetime import date
 import numpy as np
 import pandas as pd
 from sklearn import linear_model
@@ -33,19 +33,18 @@ ID_FEATS = 3
 N_JOBS = 2  # how many threads to run in parallel during training
 
 
-def main(config):
-    basename = os.path.splitext(os.path.basename(__file__))[0]
+def main(config, modelname):
+    #basename = os.path.splitext(os.path.basename(__file__))[0]
     print_timestamped_message('Starting to train model %s'
-                              % (basename))
+                              % (modelname))
 
-    outfile_base = config.get('runtime', 'out_dir') + '/' + basename
+    outfile_base = config.get('runtime', 'out_dir') + '/' + modelname
     if isfile(outfile_base + '.npz'):
         print('%s exists. Will not overwrite. ABORTING.' % (outfile_base + '.npz'))
         return
 
     dsgv_home = config.get('DSGV-PATHS', 'dsgv_home')
     preproc_path = dsgv_home + '/Preproc/PreprocOut/'
-    translate_path = dsgv_home + '/Preproc/Translate/'
     feats_path = dsgv_home + '/ExtractFeats/ExtractOut/'
 
     # Define classifier
@@ -67,7 +66,7 @@ def main(config):
         'clsf':  'logreg-l1',      # logistic regression, l1 regularized
         'params': classf_params,
         'scaled': True,
-        'nneg':  'balanced',                # maximum neg instances
+        'nneg':  2000,            # maximum neg instances
         'nsrc':  'randmax',        # ... randomly selected
         'notes': ''
     }
@@ -75,41 +74,31 @@ def main(config):
     # ========================= DATA =================================
     print_timestamped_message('loading up data.', indent=4)
 
-    with open(preproc_path + 'saiapr_90-10_splits.json', 'r') as f:
-        s_splits = json.load(f)
+    with open(preproc_path + 'fr_splits.json', 'r') as f:
+        splits = json.load(f)
 
     # Image features
     with h5.File(feats_path + 'saiapr_bbdf_rsn50-max.hdf5') as f:
         X = np.array(f["img_feats"])
-    X_tr = filter_X_by_filelist(X, s_splits['train'])
+    X_tr = filter_X_by_filelist(X, splits['train'])
+    print('X_tr shape:', X_tr.shape)
 
-    # Referring expressions data
-    saiapr_refdf = pd.read_json(preproc_path + 'saiapr_refdf.json.gz',
-                                typ='frame', orient='split', compression='gzip')
-    # Training set
-    saiapr_train = filter_refdf_by_filelist(saiapr_refdf, s_splits['train'])
-    saiapr_train = filter_relational_expr(saiapr_train).drop(columns='tagged')
-    print('Saiapr_train shape:', saiapr_train.shape)
+    refdf = pd.read_pickle(preproc_path + 'FR_small_dataset.pkl')
+    print('refdf shape:', refdf.shape)
 
-    # Translated expressions
-    fr_refexp = pd.read_csv(translate_path + 'FR_trainset.csv', sep=',', index_col=0, header=0)
-    print('Translated refexp shape:', fr_refexp.shape)
-
-    refdf_tr = saiapr_train.merge(fr_refexp, how='left', left_index=True, right_index=True, suffixes=('_EN', None))
-    print('Merged refdf_tr:\n', refdf_tr.tail())
-
-    refdf_tr = filter_relational_expr(refdf_tr, lang='FR')
+    refdf_tr = filter_refdf_by_filelist(refdf, splits['train'])
+    print('Training dataset:\n', refdf_tr)
 
     # ======================= Intermediate ==============================
-    print_timestamped_message('creating intermediate data structures',
-                              indent=4)
+    print_timestamped_message('creating intermediate data structures', indent=4)
+
     word2den = create_word2den(refdf_tr)
     X_idx = make_X_id_index(X_tr)
     mask_matrix = make_mask_matrix(X_tr, X_idx, word2den, word2den.keys())
 
     # ======================= Wordlist ==============================
-    print_timestamped_message('selecting words to train models for',
-                              indent=4)
+    print_timestamped_message('selecting words to train models for', indent=4)
+
     min_freq = model['wprm']
     counts = mask_matrix.sum(axis=1)
     wordlist = np.array(list(word2den.keys()))[counts > min_freq]
@@ -148,30 +137,17 @@ def main(config):
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Train a (set of) WAC model(s)')
-    parser.add_argument('-c', '--config_file',
-                        help='''
-                        path to config file specifying data paths.
-                        default: '../../Config/default.cfg' ''',
-                        default='../../Config/default.cfg')
-    parser.add_argument('-o', '--out_dir',
-                        help='''
-                        where to put the resulting files.
-                        default: '../ModelsOut' ''')
+        description='Train French WAC model(s)')
+    parser.add_argument('-m', '--modelname',
+                        help='name of model.',
+                        default='wac_FR_' + str(date.today()))
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
+    with open('../../Config/default.cfg', 'r', encoding='utf-8') as f:
+        config.read_file(f)
 
-    try:
-        with open(args.config_file, 'r', encoding='utf-8') as f:
-            config.read_file(f)
-    except IOError:
-        print('no config file found at %s' % (args.config_file))
-        sys.exit(1)
-
-    if args.out_dir:
-        out_dir = args.out_dir
-    elif config.has_option('DSGV-PATHS', 'train_out_dir'):
+    if config.has_option('DSGV-PATHS', 'train_out_dir'):
         out_dir = config.get('DSGV-PATHS', 'train_out_dir')
     else:
         out_dir = '../ModelsOut'
@@ -179,4 +155,4 @@ if __name__ == '__main__':
     config.add_section('runtime')
     config.set('runtime', 'out_dir', out_dir)
 
-    main(config)
+    main(config, args.modelname)

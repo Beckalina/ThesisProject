@@ -1,3 +1,19 @@
-[2021-08-07 00:45:53]
+[2021-08-07 00:45:53] wac_EN_1
         acc       mrr       acv       rnd
 0  0.591757  0.752971  0.891024  0.195298
+
+[2021-08-11 20:41:43.148872] wac_FR_1 - trained on full trainset
+        acc       mrr       acv       rnd
+0  0.663987  0.766351  0.914596  0.201291
+
+[2021-08-12 12:31:28.126552] wac_EN_2 - Max_neg=5, and added 'except' & 'other than' to relwords
+        acc       mrr       acv       rnd
+0  0.482764  0.616748  0.909949  0.200734
+
+[2021-08-12 13:22:12.437341] wac_EN_3 - Had misunderstood max_neg - changed to 20000!
+        acc       mrr       acv       rnd
+0  0.679899  0.782917  0.909949  0.200734
+
+[2021-08-12 14:39:28.825271] wac_FR - full dataset with max_neg=20000
+        acc      mrr       acv       rnd
+0  0.651548  0.75245  0.914596  0.201291

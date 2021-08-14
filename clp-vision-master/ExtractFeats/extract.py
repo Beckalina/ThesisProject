@@ -42,18 +42,13 @@ def compute_posfeats(img, bb):
 
     ih, iw, _ = img.shape
     x, y, w, h = bb
-    # x1, relative
-    x1r = x / iw
-    # y1, relative
-    y1r = y / ih
-    # x2, relative
-    x2r = (x+w) / iw
-    # y2, relative
-    y2r = (y+h) / ih
-    # area
-    area = (w*h) / (iw*ih)
-    # ratio image sides (= orientation)
-    ratio = iw / ih
+    x1r = x / iw  # x1, relative
+    y1r = y / ih  # y1, relative
+    x2r = (x+w) / iw  # x2, relative
+    y2r = (y+h) / ih  # y2, relative
+
+    area = (w*h) / (iw*ih)  # area
+    ratio = iw / ih  # ratio image sides (= orientation)
     # distance from center (normalised)
     cx = iw / 2
     cy = ih / 2
@@ -131,24 +126,21 @@ def compute_feats(config, args, bbdf, model, preproc,
             this_bb = row['bb']
             this_region_id = row[reg_col]
 
-        if subreg:  # this means that we are reading in Flickr30k...
-            # .. or ADE20k
+        if subreg:  # this means that we are reading in Flickr30k or ADE20k
             this_region_id = row[reg_col] + row[subreg_column] / 100
 
         #  When extracting feats for imagenet regions, must
         #  - create combined filename out of image_id and region_id
-        #  - neutralise positional features, by setting bb given
-        #    to pos feat computation to 0,0,w,h. So that all ImageNet
-        #    regions end up with same positions.
+        #  - neutralise positional features, by setting bb given to pos feat computation
+        #    to 0,0,w,h. So that all ImageNet regions end up with same positions.
         if code_icorpus[this_icorpus] == 'image_net':
             this_image_id_mod = join_imagenet_id(this_image_id,
                                                  this_region_id)
             this_bb_mod = [0, 0, this_bb[2], this_bb[3]]
         elif code_icorpus[this_icorpus] == 'ade_20k':
-            # somewhat regrettably, ade20k wasn't preprocessed to
-            # use our normal format. this is coming back to haunt
-            # us here, as we need to create the image id from
-            # other rows.. this will only work on ade_imgdf, not on ade_objdf
+            # somewhat regrettably, ade20k wasn't preprocessed to use our normal format.
+            # this is coming back to haunt us here, as we need to create the image id
+            # from other rows.. this will only work on ade_imgdf, not on ade_objdf
             this_image_id_mod = (row['split'], row['image_cat'], row['filename'])
             this_bb_mod = this_bb
         elif code_icorpus[this_icorpus] == 'cub_birds':
@@ -188,7 +180,6 @@ def compute_feats(config, args, bbdf, model, preproc,
         if (n+1) % batch_size == 0 or n+1 == len(bbdf):
             print_timestamped_message('new batch! (%d %d) Extracting!...' %
                                       (file_counter, n), indent=4)
-
             try:
                 X_i = np.array(X_i)
                 # print X_i.shape
@@ -231,16 +222,10 @@ def compute_feats(config, args, bbdf, model, preproc,
             with h5py.File(outfilename, 'w') as f:
                 f.create_dataset('img_feats', data=write_buffer)
 
-            # write_buffer = da.concatenate(X_out, axis=0)
-            # da.to_hdf5(filename + "_" + str(write_count) + ".hdf5",
-            #            'img_feats', write_buffer,
-            #            compression="gzip", compression_opts=9,
-            #            shuffle=True, chunks=True)
-
             write_count += 1
             X_out = []
-
     # and back to the for loop
+
     if not size_flag and (not args.dry_run or args.write_dummy):
         # X_out = da.concatenate(X_out, axis=0)
         X_out = np.concatenate(X_out, axis=0)

@@ -186,7 +186,7 @@ def eval_testdf(testdf, wac, X, applyfunc=apply_refexp_to_image, **kwargs):
     for n, row in tqdm(testdf.iterrows(), total=len(testdf)):
         results.append(applyfunc(row, wac, X, **kwargs))  # usually apply_refexp_to_image
     outdf = pd.concat([testdf, pd.DataFrame(results, columns='cov suc rnk nob'.split())], axis=1)
-    outdf['is_rel'] = outdf['refexp'].apply(is_relational)
+    # outdf['is_rel'] = outdf['refexp'].apply(is_relational)
     # if outdf.isnull().values.any():
     #     print 'Contains NaNs. Consider dropping those before summarising!'
     return outdf

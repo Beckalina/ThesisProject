@@ -66,7 +66,7 @@ def main(config):
         'clsf':  'logreg-l1',      # logistic regression, l1 regularized
         'params': classf_params,
         'scaled': True,
-        'nneg':  'balanced',                # maximum neg instances
+        'nneg':  20000,                # maximum neg instances
         'nsrc':  'randmax',        # ... randomly selected
         'notes': ''
     }
@@ -145,31 +145,11 @@ def main(config):
 #
 # ======== MAIN =========
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Train a (set of) WAC model(s)')
-    parser.add_argument('-c', '--config_file',
-                        help='''
-                        path to config file specifying data paths.
-                        default: '../../Config/default.cfg' ''',
-                        default='../../Config/default.cfg')
-    parser.add_argument('-o', '--out_dir',
-                        help='''
-                        where to put the resulting files.
-                        default: '../ModelsOut' ''')
-    args = parser.parse_args()
-
     config = configparser.ConfigParser()
+    with open('../../Config/default.cfg', 'r', encoding='utf-8') as f:
+        config.read_file(f)
 
-    try:
-        with open(args.config_file, 'r', encoding='utf-8') as f:
-            config.read_file(f)
-    except IOError:
-        print('no config file found at %s' % (args.config_file))
-        sys.exit(1)
-
-    if args.out_dir:
-        out_dir = args.out_dir
-    elif config.has_option('DSGV-PATHS', 'train_out_dir'):
+    if config.has_option('DSGV-PATHS', 'train_out_dir'):
         out_dir = config.get('DSGV-PATHS', 'train_out_dir')
     else:
         out_dir = '../ModelsOut'

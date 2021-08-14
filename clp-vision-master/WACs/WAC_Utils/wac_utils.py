@@ -6,6 +6,7 @@ by the scripts that define the models.
 
 from __future__ import division
 import sys
+import os
 from collections import defaultdict
 import pandas as pd
 import numpy as np
@@ -16,22 +17,10 @@ from itertools import permutations
 import re
 
 
+THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+
 # The first features in the image feature Xs encode the region ID
 ID_FEATS = 3
-
-RELWORDS = ['below',
-            'above',
-            'between',
-            'not',
-            'behind',
-            'under',
-            'underneath',
-            'front of',
-            'right of',
-            'left of',
-            'ontop of',
-            'next to',
-            'middle of']
 
 
 def filter_X_by_filelist(X, filelist):
@@ -50,20 +39,18 @@ def filter_refdf_by_filelist(refdf, filelist):
 
 def is_relational(expr, relwords):
     for rel in relwords:
-        #if rel in expr:
         try:
             if re.search(rel, expr):
                 #print('Removed refexp - match:', rel, '\trefexpr:', expr)
                 return True
         except TypeError:
-            print("\nTypeError with expr:", expr)
             return True
     return False
 
 
 def filter_relational_expr(refdf, lang='EN'):
     """Filter out refexps with relational expressions."""
-    relwords = '../WAC_Utils/relwords_' + lang + '.txt'
+    relwords = THIS_DIR + '/relwords_' + lang + '.txt'
     with open(relwords, 'r') as f:
         rw = f.read().split('\n')
     return refdf[~(refdf['refexp'].apply(is_relational, args=(rw,)))]
