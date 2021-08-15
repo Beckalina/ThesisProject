@@ -1,3 +1,31 @@
 [2021-08-12 17:49:37.403386] wac_FR_small - FR monolingual on small dataset
         acc       mrr      acv       rnd
 0  0.337509  0.602471  0.54357  0.189559
+
+[2021-08-15 16:45:11.935847] L2wac_01 - FR as L2 with all EN WACs in feats
+        acc       mrr      acv       rnd
+0  0.353075  0.612766  0.54357  0.189559
+
+[2021-08-15 17:00:04.375356] L2wac_02 - FR as L2, reduced wprm to 20. #WACs now 72 (was 33)
+        acc       mrr       acv       rnd
+0  0.400532  0.630185  0.681051  0.191484
+
+[2021-08-15 17:03:59.392281] L2wac_03 - Big improvement, so trying wprm=10. #WACs=105
+        acc       mrr       acv       rnd
+0  0.418755  0.638577  0.732401  0.192424
+
+[2021-08-15 17:19:17.826742] L2wac_04 - Used only L1 activations with >0.75 prob, all others -> 0
+        acc       mrr       acv       rnd
+0  0.425209  0.642732  0.732401  0.192424
+
+[2021-08-15 19:12:22.061199] wac_FR_small2 - Rerunning baseline with wprm=10
+        acc       mrr       acv       rnd
+0  0.403569  0.626719  0.732401  0.192424
+
+[2021-08-15 19:24:44.685722] wac_FR_small3 - FR small baseline again, trying SGDClassifier
+        acc       mrr       acv       rnd
+0  0.318527  0.539364  0.732401  0.192424
+
+[2021-08-15 19:34:01.364908] L2wac_05 - FR as L2 again, trying logreg param C=0.9 (default=1)
+        acc      mrr       acv       rnd
+0  0.420273  0.63983  0.732401  0.192424

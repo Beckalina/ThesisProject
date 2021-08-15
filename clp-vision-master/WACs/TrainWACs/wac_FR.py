@@ -34,7 +34,6 @@ N_JOBS = 2  # how many threads to run in parallel during training
 
 
 def main(config, modelname):
-    #basename = os.path.splitext(os.path.basename(__file__))[0]
     print_timestamped_message('Starting to train model %s'
                               % (modelname))
 
@@ -49,7 +48,9 @@ def main(config, modelname):
 
     # Define classifier
     classifier = linear_model.LogisticRegression
+    #classifier = linear_model.SGDClassifier
     classf_params = {
+        #'loss': 'log',
         'penalty': 'l2',
         'warm_start': True,
         'solver': 'lbfgs',
@@ -62,7 +63,7 @@ def main(config, modelname):
         'cnn': 'rsn50-max',        # CNN used for vision feats
         'rel':   'excl',           # exclude relational expressions
         'wrdl':  'min',            # wordlist: minimal n occurrences...
-        'wprm':  40,               # ... 40 times
+        'wprm':  10,               # ... wprm times
         'clsf':  'logreg-l1',      # logistic regression, l1 regularized
         'params': classf_params,
         'scaled': True,

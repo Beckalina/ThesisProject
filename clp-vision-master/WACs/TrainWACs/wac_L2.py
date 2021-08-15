@@ -50,6 +50,7 @@ def main(config, modelname):
     classifier = linear_model.LogisticRegression
     classf_params = {
         'penalty': 'l2',
+        'C': 0.9,
         'warm_start': True,
         'solver': 'lbfgs',
         'max_iter': 500
@@ -61,12 +62,13 @@ def main(config, modelname):
         'cnn': 'rsn50-max',        # CNN used for vision feats
         'rel':   'excl',           # exclude relational expressions
         'wrdl':  'min',            # wordlist: minimal n occurrences...
-        'wprm':  40,               # ... 40 times
-        'clsf':  'logreg-l1',      # logistic regression, l1 regularized
+        'wprm':  10,               # ... wprm times
+        'clsf':  'logreg-l2',      # logistic regression, l2 regularized
         'params': classf_params,
         'scaled': True,
-        'nneg':  2000,            # maximum neg instances
-        'nsrc':  'randmax',        # ... randomly selected
+        'nneg':  2000,              # maximum neg instances
+        'nsrc':  'randmax',         # ... randomly selected
+        'l1_probs': 'high',         # 'all', 'high'
         'notes': ''
     }
 
@@ -76,22 +78,31 @@ def main(config, modelname):
     with open(preproc_path + 'fr_splits.json', 'r') as f:
         splits = json.load(f)
 
-    # Image features
+    # Features
     with h5.File(feats_path + 'saiapr_bbdf_rsn50-max.hdf5') as f:
-        X = np.array(f["img_feats"])
+        img_fts = np.array(f["img_feats"])
+    with h5.File(feats_path + 'L1_wac_EN_3.hdf5') as f:
+        l1_fts = np.array(f["img_feats"])[:, ID_FEATS:]
+
+    if model['l1_probs'] == 'high':
+        high_probs = np.zeros_like(l1_fts)
+
+        it = np.nditer(l1_fts, flags=['multi_index'])
+        for p in it:
+            if p > 0.75:
+                idx = it.multi_index
+                high_probs[idx[0]][idx[1]] = p
+        l1_fts = high_probs
+
+    X = np.concatenate((img_fts, l1_fts), axis=1)
     X_tr = filter_X_by_filelist(X, splits['train'])
     print('X_tr shape:', X_tr.shape)
 
     # Ref Exps
     refdf = pd.read_pickle(preproc_path + 'FR_small_dataset.pkl')
-    print('refdf shape:', refdf.shape)
-
     refdf_tr = filter_refdf_by_filelist(refdf, splits['train'])
-    print('Training dataset:\n', refdf_tr)
-
-    # EN WACs
-    with gzip.open(model_path + 'wac_EN_3.pklz', 'r') as rf:
-        en_wacs = pickle.load(rf)
+    print('refdf_tr shape:', refdf_tr.shape)
+    print(refdf_tr)
 
     # ======================= Intermediate ==============================
     print_timestamped_message('creating intermediate data structures', indent=4)
@@ -107,22 +118,7 @@ def main(config, modelname):
     counts = mask_matrix.sum(axis=1)
     wordlist = np.array(list(word2den.keys()))[counts > min_freq]
 
-    # ======================= L1 activations ==============================
-    print_timestamped_message('Adding L1 activations to feature vectors', indent=4)
 
-    for img in X_tr:
-        img_fts = img[:, ID_FEATS:]
-        activs = np.zeros((len(en_wacs), len(img_fts)))
-
-        for i, w in enumerate(en_wacs.keys()):
-            if w in wordlist:
-                prob = np.array(en_wacs[w]['clsf'].predict_proba(X=img_fts)[:, 1])
-                activs[i] = prob
-
-        img_l2 = np.concatenate((img, activs.T), axis=1, dtype='<f8')
-        print(img_l2.shape)
-
-    """
     # ======================= TRAIN ==============================
     print_timestamped_message('and training the %d WACs!' % (len(wordlist)),
                               indent=4)
@@ -149,7 +145,7 @@ def main(config, modelname):
         pickle.dump(clsf, f)
 
     print_timestamped_message('DONE!')
-    """
+
 
 #
 #
@@ -160,7 +156,7 @@ if __name__ == '__main__':
         description='Train French WAC model(s)')
     parser.add_argument('-m', '--modelname',
                         help='name of model.',
-                        default='wac_FR_' + str(date.today()))
+                        default='L2wac_' + str(date.today()))
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
