@@ -17,3 +17,19 @@
 [2021-08-12 14:39:28.825271] wac_FR - full dataset with max_neg=20000
         acc      mrr       acv       rnd
 0  0.651548  0.75245  0.914596  0.201291
+
+[2021-08-18 22:07:58.791193] L2wac_04 - Running best L2 model on test data (sans val)
+        acc       mrr       acv      rnd
+0  0.430303  0.654414  0.724662  0.20448
+
+[2021-08-18 22:09:52.731827] wac_FR_small2 - Running best small FR model on test data (sans val)
+        acc       mrr       acv      rnd
+0  0.412929  0.641805  0.724662  0.20448
+
+[2021-08-19 07:02:51.681078] best_L2 - Best L2 trained on train + val
+        acc       mrr       acv       rnd
+0  0.474545  0.676557  0.821814  0.205967
+
+[2021-08-19 07:06:32.292878] best_FR - Best FR (small) trained on train + val
+        acc       mrr       acv       rnd
+0  0.471717  0.673405  0.821814  0.205967

@@ -81,13 +81,13 @@ def main(config, modelname):
     # Image features
     with h5.File(feats_path + 'saiapr_bbdf_rsn50-max.hdf5') as f:
         X = np.array(f["img_feats"])
-    X_tr = filter_X_by_filelist(X, splits['train'])
+    X_tr = filter_X_by_filelist(X, splits['train'] + splits['val'])
     print('X_tr shape:', X_tr.shape)
 
     refdf = pd.read_pickle(preproc_path + 'FR_small_dataset.pkl')
     print('refdf shape:', refdf.shape)
 
-    refdf_tr = filter_refdf_by_filelist(refdf, splits['train'])
+    refdf_tr = filter_refdf_by_filelist(refdf, splits['train'] + splits['val'])
     print('Training dataset:\n', refdf_tr)
 
     # ======================= Intermediate ==============================

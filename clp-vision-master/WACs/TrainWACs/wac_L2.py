@@ -95,12 +95,12 @@ def main(config, modelname):
         l1_fts = high_probs
 
     X = np.concatenate((img_fts, l1_fts), axis=1)
-    X_tr = filter_X_by_filelist(X, splits['train'])
+    X_tr = filter_X_by_filelist(X, splits['train'] + splits['val'])
     print('X_tr shape:', X_tr.shape)
 
     # Ref Exps
     refdf = pd.read_pickle(preproc_path + 'FR_small_dataset.pkl')
-    refdf_tr = filter_refdf_by_filelist(refdf, splits['train'])
+    refdf_tr = filter_refdf_by_filelist(refdf, splits['train'] + splits['val'])
     print('refdf_tr shape:', refdf_tr.shape)
     print(refdf_tr)
 
@@ -153,7 +153,7 @@ def main(config, modelname):
 # ======== MAIN =========
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Train French WAC model(s)')
+        description='Train L2 WAC model(s)')
     parser.add_argument('-m', '--modelname',
                         help='name of model.',
                         default='L2wac_' + str(date.today()))

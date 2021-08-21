@@ -35,7 +35,7 @@ def get_en_refexp(path):
     srefdf = pd.read_json(path + 'saiapr_refdf.json.gz',
                           typ='frame', orient='split', compression='gzip')
     split_df = filter_refdf_by_filelist(srefdf, ssplit90['test'])
-    split_df = filter_relational_expr(split_df, lang)
+    split_df = filter_relational_expr(split_df)
     return split_df
 
 
